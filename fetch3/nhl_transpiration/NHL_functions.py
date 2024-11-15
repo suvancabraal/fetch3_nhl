@@ -435,7 +435,7 @@ def calc_rad_attenuation(PAR, LAD, dz, Cf=0.85, x=1, **kwargs):
     return P0, Qp, zenith_angle
 
 
-def calc_gs_Leuning(g0, m, A, c_s, gamma_star, VPD, D0=3):
+def calc_gs_Leuning(g0, m, A, c_s, gamma_star, VPD, fix_vpd=True, D0=3):
     """
     Calculates gs according to Leuning 1995
 
@@ -462,6 +462,8 @@ def calc_gs_Leuning(g0, m, A, c_s, gamma_star, VPD, D0=3):
     gs : float
         stomatal conductance [mol H2O m-2 s-1]
     """
+    if fix_vpd:
+        VPD=D0
 
     gs = g0 + m * abs(A) / ((c_s - gamma_star) * (1 + VPD / D0))
     return gs
