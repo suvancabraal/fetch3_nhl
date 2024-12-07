@@ -125,7 +125,7 @@ def get_model_sapflux(modelfile, obs_file, obs_var, output_var, obs_tvar='TIMEST
 
     return df['sapflux_scaled'], df[obs_var]
 
-def get_model_nhl_trans(modelfile, obs_file, obs_var, output_var, hour_range=None, scaling_factor=None, obs_tvar='TIMESTAMP', **kwargs):
+def get_model_nhl_trans(modelfile, obs_file, obs_var, output_var, hour_range=None, normalize=False, use_daily=False, scaling_factor=None, obs_tvar='TIMESTAMP', **kwargs):
     # Read in observation data
     obsdf = pd.read_csv(obs_file, index_col=[obs_tvar], parse_dates=[obs_tvar])
     if obsdf.index.tz is not None:
@@ -148,7 +148,10 @@ def get_model_nhl_trans(modelfile, obs_file, obs_var, output_var, hour_range=Non
     df = pd.merge(modeldf, obsdf[[obs_var]], how='left', right_index=True, left_index=True, suffixes=['model', 'obs'])
 
     # remove first and last timestamp
-    obsdf = obsdf.iloc[1:-1]
+    df = df.iloc[1:-1]
+
+    if use_daily:
+        df = df.resample('D').agg(pd.Series.sum, skipna=False)
 
     # Drop rows with NaN
     df = df.dropna()
@@ -157,7 +160,12 @@ def get_model_nhl_trans(modelfile, obs_file, obs_var, output_var, hour_range=Non
         df[obs_var] = df[obs_var] * scaling_factor
 
     if hour_range:
-        df = df[(df.index.hour >= hour_range[0]) & (df.index.hour <= hour_range[1])]
+        # ignore if using daily
+        if not use_daily:
+            df = df[(df.index.hour >= hour_range[0]) & (df.index.hour <= hour_range[1])]
+
+    if normalize:
+        df['nhl_scaled'], df[obs_var] = normalize_model_obs(df['nhl_scaled'], df[obs_var])
 
     return df['nhl_scaled'], df[obs_var]
 
@@ -303,6 +311,10 @@ def get_model_obs(modelfile, obs_file, obs_var, output_var, species, obs_tvar='T
 
     return modelds_not_nans, obsdf_not_nans
 
+def normalize_model_obs(model, obs):
+    model = (model - model.mean()) / model.std()
+    obs = (obs - obs.mean()) / obs.std()
+    return model, obs
 
 def scale_sapflux(sapflux, dz, mean_crown_area_sp, total_crown_area_sp, plot_area):
     """Scales sapflux from FETCH output (in kg s-1) to W m-2"""
